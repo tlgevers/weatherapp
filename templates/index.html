@@ -1,0 +1,20 @@
+<!-- forms.html -->
+{{if .Weather.Success}}
+<h1>Weather for {{.Weather.Location.Name}}, {{.Weather.Location.Region}}</h1>
+    <div style="display: flex;">
+        <div style="width: 300px;">
+            <ul>
+                <li>Temp: {{.Weather.Current.TempF}} Fahrenheit</li>
+                <li>Wind: {{.Weather.Current.WindMph}} Mph</li>
+            </ul>
+            <img width="100" src="http:{{.Weather.Condition.icon}}">
+        </div>
+    </div>
+{{else}}
+    <h1>Please enter a zipcode?</h1>
+    <form method="POST">
+        <label>ZipCode:</label><br />
+        <input type="text" name="zipcode"><br />
+        <input type="submit">
+    </form>
+{{end}}

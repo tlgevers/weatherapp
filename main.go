@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -16,14 +17,14 @@ const (
 )
 
 type Location struct {
-	Name            string
-	Region          string
-	Country         string
-	Lat             float32
-	Lon             float32
-	Tz_id           string
-	Localtime_epoch int
-	Localtime       string
+	Name           string  `json:"name"`
+	Region         string  `json:"region"`
+	Country        string  `json:"country"`
+	Lat            float32 `json:"lat"`
+	Lon            float32 `json:"lon"`
+	TzID           string  `json:"tz_id"`
+	LocaltimeEpoch int     `json:"localtime_epoch"`
+	Localtime      string  `json:"localtime"`
 }
 
 type Condition struct {
@@ -33,34 +34,35 @@ type Condition struct {
 }
 
 type Current struct {
-	Last_updated_epoch int
-	Last_updated       string
-	Temp_c             float32
-	Temp_f             float32
-	Is_day             int
-	Condition          Condition `json:"condition"`
-	Wind_mph           float32
-	Wind_kph           float32
-	Wind_degree        int
-	Wind_dir           string
-	Pressure_mb        float32
-	Pressure_in        float32
-	Precip_mm          float32
-	Precip_in          float32
-	Humidity           int
-	Cloud              int
-	Feelslike_c        float32
-	Feelslike_f        float32
-	Vis_km             float32
-	Vis_miles          float32
-	Uv                 float32
-	Gust_mph           float32
-	Gust_kph           float32
+	LastUpdatedEpoch int       `json:"last_updated_epoch"`
+	LastUpdated      string    `json:"last_updated"`
+	TempC            float32   `json:"temp_c"`
+	TempF            float32   `json:"temp_f"`
+	IsDay            int       `json:"is_day"`
+	Condition        Condition `json:"condition"`
+	WindMph          float32   `json:"wind_mph"`
+	WindKph          float32   `json:"wind_kph"`
+	WindDegree       int       `json:"wind_degree"`
+	WindDir          string    `json:"wind_dir"`
+	PressureMb       float32   `json:"pressure_mb"`
+	PressureIn       float32   `json:"pressure_in"`
+	PrecipMm         float32   `json:"precip_mm"`
+	PrecipIn         float32   `json:"precip_in"`
+	Humidity         int       `json:"humidity"`
+	Cloud            int       `json:"cloud"`
+	FeelslikeC       float32   `json:"feelslike_c"`
+	FeelslikeF       float32   `json:"feelslike_f"`
+	VisKm            float32   `json:"vis_km"`
+	VisMiles         float32   `json:"vis_miles"`
+	Uv               float32   `json:"uv"`
+	GustMph          float32   `json:"gust_mph"`
+	GustKph          float32   `json:"gust_kph"`
 }
 
 type Weather struct {
 	Location Location `json:"location"`
 	Current  Current  `json:"current"`
+	Success  bool
 }
 
 func buildWeatherURL(key string, location string) (url string, err error) {
@@ -81,15 +83,18 @@ func readAPIKey() (data string, err error) {
 	return
 }
 
-func main() {
+type LocationDetails struct {
+	ZipCode string
+}
+
+func getWeatherByZip(zip string) (weather Weather, err error) {
 	fmt.Println("weather")
 	apiKey, err := readAPIKey()
 	if err != nil {
 		fmt.Println("error while reading API key", err)
+		return
 	}
-	fmt.Println("Enter a zipcode")
-	var zip string
-	fmt.Scanln(&zip)
+	// fmt.Scanln(&zip)
 	weatherURL, err := buildWeatherURL(apiKey, zip)
 	fmt.Println("weatherURL", weatherURL)
 	res, err := http.Get(weatherURL)
@@ -102,9 +107,39 @@ func main() {
 	if err != nil {
 		fmt.Println("error while reading body", err)
 	}
-	weather := Weather{}
+	weather = Weather{
+		Success: true,
+	}
 	json.Unmarshal(body, &weather)
 	fmt.Println("weather", weather)
+	return
+}
+
+func main() {
+	tmpl := template.Must(template.ParseFiles("templates/index.html"))
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			tmpl.Execute(w, nil)
+			return
+		}
+
+		// details := LocationDetails{
+		// 	ZipCode: r.FormValue("zipcode"),
+		// }
+		zip := r.FormValue("zipcode")
+		weather, err := getWeatherByZip(zip)
+		if err != nil {
+			fmt.Println("Error while getting weather", err)
+		}
+
+		// do something with details
+
+		tmpl.Execute(w, struct{ Weather Weather }{weather})
+	})
+
+	fmt.Println("listening on 8080")
+	http.ListenAndServe(":8080", nil)
 
 	// scanner := bufio.NewScanner(resp.Body)
 	// for i := 0; scanner.Scan(); i++ {
